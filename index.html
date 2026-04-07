@@ -2,6 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+
+  <!-- CSP: unsafe-eval necesario para hls.js -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src  'self' 'unsafe-eval' https://cdn.jsdelivr.net;
+    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src    https://fonts.gstatic.com;
+    img-src     'self' https: data: blob:;
+    media-src   'self' https: blob:;
+    connect-src 'self' https: blob:;
+    worker-src  'self' blob:;
+  ">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08111f">
   <title>iliterate-robot · IPTV</title>
@@ -111,7 +124,7 @@
           </div>
         </div>
 
-        <!-- ACE TUNNEL BANNER (visible solo cuando se necesita) -->
+        <!-- ACE TUNNEL BANNER -->
         <div id="ace-tunnel-banner" class="ace-tunnel-banner hidden">
           <span>⚡ Para streams ACE desde GitHub Pages necesitas un túnel HTTPS.</span>
           <button id="btn-configure-tunnel" class="btn btn-primary btn-sm">Configurar</button>
@@ -170,80 +183,74 @@
     </div>
   </div>
 
-<!-- MODAL CONFIGURAR TÚNEL ACE -->
-<div id="tunnel-modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Configurar túnel AceStream">
-  <div class="modal modal--wide">
-    <div class="modal-header">
-      <div class="modal-icon-badge">⚡</div>
-      <div class="modal-title-wrap">
-        <h2 class="modal-title">Túnel AceStream</h2>
-        <p class="modal-meta">Conecta tu motor local con GitHub Pages</p>
+  <!-- MODAL CONFIGURAR TÚNEL ACE -->
+  <div id="tunnel-modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Configurar túnel AceStream">
+    <div class="modal modal--wide">
+      <div class="modal-header">
+        <div class="modal-icon-badge">⚡</div>
+        <div class="modal-title-wrap">
+          <h2 class="modal-title">Túnel AceStream</h2>
+          <p class="modal-meta">Conecta tu motor local con GitHub Pages</p>
+        </div>
+        <button id="btn-close-tunnel-modal" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
       </div>
-      <button id="btn-close-tunnel-modal" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="modal-body">
+      <div class="modal-body">
 
-      <!-- Estado actual -->
-      <div id="tunnel-status-card" class="tunnel-status-card">
-        <div class="tunnel-status-dot" id="tunnel-status-dot"></div>
-        <span id="tunnel-status-text" class="tunnel-status-text">Sin configurar</span>
-        <button id="btn-clear-tunnel" class="btn btn-surface btn-sm">Limpiar</button>
-      </div>
-
-      <!-- Pasos -->
-      <div class="tunnel-steps">
-
-        <div class="tunnel-step">
-          <div class="tunnel-step__num">1</div>
-          <div class="tunnel-step__body">
-            <div class="tunnel-step__title">Levanta el motor Docker</div>
-            <div class="tunnel-step__sub">En la carpeta del repo clonado</div>
-            <div class="code-block">
-              <code>docker compose up -d</code>
-            </div>
-          </div>
+        <!-- Estado actual -->
+        <div id="tunnel-status-card" class="tunnel-status-card">
+          <div class="tunnel-status-dot" id="tunnel-status-dot"></div>
+          <span id="tunnel-status-text" class="tunnel-status-text">Sin configurar</span>
+          <button id="btn-clear-tunnel" class="btn btn-surface btn-sm">Limpiar</button>
         </div>
 
-        <div class="tunnel-step">
-          <div class="tunnel-step__num">2</div>
-          <div class="tunnel-step__body">
-            <div class="tunnel-step__title">Instala cloudflared <span class="tunnel-step__tag">solo una vez</span></div>
-            <div class="code-block">
-              <code>winget install Cloudflare.cloudflared</code>
+        <!-- Pasos -->
+        <div class="tunnel-steps">
+
+          <div class="tunnel-step">
+            <div class="tunnel-step__num">1</div>
+            <div class="tunnel-step__body">
+              <div class="tunnel-step__title">Levanta el motor Docker</div>
+              <div class="tunnel-step__sub">En la carpeta del repo clonado</div>
+              <div class="code-block"><code>docker compose up -d</code></div>
             </div>
           </div>
-        </div>
 
-        <div class="tunnel-step">
-          <div class="tunnel-step__num">3</div>
-          <div class="tunnel-step__body">
-            <div class="tunnel-step__title">Crea el túnel temporal</div>
-            <div class="tunnel-step__sub">Deja esta terminal abierta mientras ves contenido</div>
-            <div class="code-block">
-              <code>cloudflared tunnel --url http://localhost:8080</code>
+          <div class="tunnel-step">
+            <div class="tunnel-step__num">2</div>
+            <div class="tunnel-step__body">
+              <div class="tunnel-step__title">Instala cloudflared <span class="tunnel-step__tag">solo una vez</span></div>
+              <div class="code-block"><code>winget install Cloudflare.cloudflared</code></div>
             </div>
           </div>
-        </div>
 
-        <div class="tunnel-step tunnel-step--highlight">
-          <div class="tunnel-step__num tunnel-step__num--accent">4</div>
-          <div class="tunnel-step__body">
-            <div class="tunnel-step__title">Pega la URL HTTPS que genera cloudflared</div>
-            <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-banana.trycloudflare.com</code></div>
-            <div class="tunnel-input-row">
-              <input id="tunnel-url-input" type="url"
-                placeholder="https://xxxx-xxxx.trycloudflare.com"
-                autocomplete="off" spellcheck="false"
-                class="tunnel-input">
-              <button id="btn-save-tunnel" class="btn btn-primary btn-sm">Guardar</button>
+          <div class="tunnel-step">
+            <div class="tunnel-step__num">3</div>
+            <div class="tunnel-step__body">
+              <div class="tunnel-step__title">Crea el túnel temporal</div>
+              <div class="tunnel-step__sub">Deja esta terminal abierta mientras ves contenido</div>
+              <div class="code-block"><code>cloudflared tunnel --url http://localhost:8080</code></div>
             </div>
           </div>
-        </div>
 
+          <div class="tunnel-step tunnel-step--highlight">
+            <div class="tunnel-step__num tunnel-step__num--accent">4</div>
+            <div class="tunnel-step__body">
+              <div class="tunnel-step__title">Pega la URL HTTPS que genera cloudflared</div>
+              <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-banana.trycloudflare.com</code></div>
+              <div class="tunnel-input-row">
+                <input id="tunnel-url-input" type="url"
+                  placeholder="https://xxxx-xxxx.trycloudflare.com"
+                  autocomplete="off" spellcheck="false"
+                  class="tunnel-input">
+                <button id="btn-save-tunnel" class="btn btn-primary btn-sm">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
-</div>
 
   <script src="./app.js"></script>
 </body>
