@@ -18,8 +18,8 @@ function getAceBase() {
 }
 
 const LOGO_MAP = {
-  'liga de campeones':      { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/M%2B%20Liga%20De%20Campeones.png' },
-  'm+ liga de campeones':   { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/M%2B%20Liga%20De%20Campeones.png' },
+  'liga de campeones':      { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Liga%20de%20Campeones%20BAR.png' },
+  'm+ liga de campeones':   { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Liga%20de%20Campeones%20BAR.png' },
   'laliga tv':              { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/M%2B%20LaLiga%20TV.png' },
   'm+ laligatv':            { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/M%2B%20LaLiga%20TV.png' },
   'm+ laliga':              { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/M%2B%20LaLiga%20TV.png' },
