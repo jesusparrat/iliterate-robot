@@ -581,16 +581,25 @@ async function waitForAceStream(aceUrl, signal) {
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     if (signal.aborted) throw new DOMException('cancelled', 'AbortError');
+
     const remaining = (MAX_ATTEMPTS - i) * (INTERVAL_MS / 1000);
     if (spinnerText) spinnerText.textContent = `Buscando peers P2P… ${remaining}s`;
 
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 1800);
-      const res = await fetch(aceUrl, { signal: ctrl.signal, method: 'HEAD' });
+      const tid = setTimeout(() => ctrl.abort(), 3000);
+
+      // GET en lugar de HEAD: AceStream gestiona GET mejor y res.url
+      // nos da la URL final del .m3u8 tras el redirect reescrito por nginx
+      const res = await fetch(aceUrl, { signal: ctrl.signal });
       clearTimeout(tid);
-      if (res.ok) return aceUrl;
-    } catch (_) { /* 503 / timeout: motor buscando peers */ }
+
+      if (res.ok) {
+        // res.url es la URL final tras redirect (ej: https://tunnel.../ace/HASH/0/manifest.m3u8)
+        // Se la pasamos directamente a hls.js para evitar doble redirect
+        return res.url || aceUrl;
+      }
+    } catch (_) { /* 503 / timeout: motor buscando peers, reintentar */ }
 
     await new Promise(r => setTimeout(r, INTERVAL_MS));
   }
