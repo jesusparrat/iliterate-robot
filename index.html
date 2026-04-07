@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <title>iliterate-robot · IPTV</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <!-- TOPBAR -->
+  <header class="topbar" role="banner">
+    <div class="topbar__left">
+      <button class="topbar__logo-btn" id="sidebar-toggle" aria-label="Menú canales" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+        <span class="topbar__brand">iliterate-robot</span>
+      </button>
+    </div>
+    <div class="topbar__center">
+      <div class="url-bar">
+        <input id="url-input" type="url" placeholder="URL de lista M3U…" autocomplete="off" spellcheck="false">
+        <button id="btn-load-url" class="btn btn-primary btn-sm">Cargar</button>
+        <button id="btn-open-playlists" class="btn btn-surface btn-sm">Listas</button>
+      </div>
+    </div>
+    <div class="topbar__right">
+      <div id="ace-status" class="ace-status" title="Estado motor AceStream"></div>
+    </div>
+  </header>
+
+  <!-- LAYOUT PRINCIPAL -->
+  <main class="app-layout" role="main">
+
+    <!-- SIDEBAR -->
+    <aside id="channel-panel" class="channel-panel" role="complementary" aria-label="Lista de canales">
+      <div class="sidebar-search">
+        <div class="search-wrap">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input id="search-input" type="search" placeholder="Buscar canal…" autocomplete="off" spellcheck="false" aria-label="Buscar canal">
+          <button id="btn-clear-search" class="btn-icon" aria-label="Limpiar búsqueda">✕</button>
+        </div>
+      </div>
+      <div id="group-pills" class="group-pills" role="tablist" aria-label="Grupos de canales"></div>
+      <div id="channel-scroll-wrap" class="channel-scroll-wrap">
+        <div id="channel-list" class="channel-list" role="list"></div>
+        <div id="scroll-sentinel" class="scroll-sentinel"></div>
+      </div>
+      <div class="sidebar-footer">
+        <span id="sidebar-status" class="sidebar-status">Carga una lista M3U</span>
+      </div>
+    </aside>
+
+    <!-- PLAYER AREA -->
+    <section class="player-area" aria-label="Reproductor">
+      <div id="player-panel" class="player-panel is-idle">
+        <div id="player-wrap" class="player-wrap">
+          <video id="video-el" playsinline webkit-playsinline muted></video>
+          <div id="player-overlay" class="player-overlay">
+            <div class="player-idle-content">
+              <div class="player-idle-icon">📺</div>
+              <p class="player-idle-title">Selecciona un canal</p>
+              <p class="player-idle-sub">Carga una lista M3U y elige qué ver</p>
+              <button id="btn-show-channels" class="btn btn-primary">Ver canales</button>
+            </div>
+          </div>
+          <div id="player-spinner" class="player-spinner hidden">
+            <div class="spinner-ring"></div>
+            <div class="spinner-text">Cargando…</div>
+          </div>
+          <div id="player-error" class="player-error hidden">
+            <div class="player-error-icon">⚠️</div>
+            <p id="player-error-text" class="player-error-text">Error de reproducción</p>
+            <div class="player-error-actions">
+              <button id="btn-retry" class="btn btn-primary btn-sm">Reintentar</button>
+              <button id="btn-back-to-list" class="btn btn-surface btn-sm">Ver lista</button>
+            </div>
+          </div>
+          <div class="player-controls">
+            <button id="btn-fullscreen" class="btn-icon player-ctrl" aria-label="Pantalla completa" title="Pantalla completa">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            </button>
+            <button id="btn-pip" class="btn-icon player-ctrl" aria-label="Picture in Picture" title="PiP">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="11" width="8" height="5" rx="1"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- NOW PLAYING -->
+        <div id="now-playing" class="now-playing empty">
+          <div id="np-logo-wrap" class="np-logo-wrap">
+            <img id="np-logo" src="" alt="" style="display:none">
+            <div id="np-logo-fallback" style="display:grid">📺</div>
+          </div>
+          <div class="np-info">
+            <div id="np-name" class="np-name">Sin canal activo</div>
+            <div id="np-sub" class="np-sub">Carga una lista y elige un canal</div>
+          </div>
+        </div>
+
+        <!-- ACE TUNNEL BANNER (visible solo cuando se necesita) -->
+        <div id="ace-tunnel-banner" class="ace-tunnel-banner hidden">
+          <span>⚡ Para streams ACE desde GitHub Pages necesitas un túnel HTTPS.</span>
+          <button id="btn-configure-tunnel" class="btn btn-primary btn-sm">Configurar</button>
+        </div>
+      </div>
+
+      <!-- HOME CONTENT (visible en idle) -->
+      <div class="home-content">
+        <div class="home-section">
+          <h2 class="home-section__title">Acceso rápido</h2>
+          <div id="quick-filters" class="chips-row"></div>
+        </div>
+        <div class="home-section">
+          <h2 class="home-section__title">Canales sugeridos</h2>
+          <div id="suggested-channels" class="chips-row">
+            <div class="ch-sub">Carga una lista M3U para ver sugerencias.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL DETALLE CANAL -->
+  <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Detalle del canal">
+    <div class="modal">
+      <div class="modal-header">
+        <div id="modal-logo-wrap" class="modal-logo-wrap">
+          <img id="modal-logo" src="" alt="">
+          <div id="modal-logo-fb" style="display:none">📺</div>
+        </div>
+        <div class="modal-title-wrap">
+          <h2 id="modal-title" class="modal-title"></h2>
+          <p id="modal-meta" class="modal-meta"></p>
+        </div>
+        <button id="btn-close-modal" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+      <div id="modal-hint" class="modal-hint"></div>
+    </div>
+  </div>
+
+  <!-- MODAL LISTAS -->
+  <div id="playlist-overlay" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Seleccionar lista">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Listas disponibles</h2>
+        <button id="btn-close-playlists" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="url-bar url-bar--stacked">
+          <input id="playlist-url-input" type="url" placeholder="O pega una URL de lista M3U…" autocomplete="off">
+          <button id="btn-load-playlist-url" class="btn btn-primary btn-sm">Cargar URL</button>
+        </div>
+        <div id="playlist-grid" class="playlist-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIGURAR TÚNEL ACE -->
+  <div id="tunnel-modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Configurar túnel AceStream">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">🔧 Configurar túnel AceStream</h2>
+        <button id="btn-close-tunnel-modal" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint-text">
+          GitHub Pages sirve desde HTTPS. Para reproducir streams ACE de forma nativa necesitas exponer tu motor local con HTTPS usando un túnel.
+        </p>
+        <div class="tunnel-steps">
+          <div class="tunnel-step">
+            <span class="tunnel-step__num">1</span>
+            <div>
+              <strong>Levanta Docker</strong>
+              <code class="code-block">docker compose up -d</code>
+            </div>
+          </div>
+          <div class="tunnel-step">
+            <span class="tunnel-step__num">2</span>
+            <div>
+              <strong>Instala cloudflared</strong>
+              <code class="code-block">winget install Cloudflare.cloudflared</code>
+            </div>
+          </div>
+          <div class="tunnel-step">
+            <span class="tunnel-step__num">3</span>
+            <div>
+              <strong>Crea el túnel temporal</strong>
+              <code class="code-block">cloudflared tunnel --url http://localhost:8080</code>
+            </div>
+          </div>
+          <div class="tunnel-step">
+            <span class="tunnel-step__num">4</span>
+            <div>
+              <strong>Pega la URL HTTPS que te da cloudflared aquí</strong>
+              <div class="url-bar" style="margin-top:8px">
+                <input id="tunnel-url-input" type="url" placeholder="https://xxxx-xxxx.trycloudflare.com" autocomplete="off">
+                <button id="btn-save-tunnel" class="btn btn-primary btn-sm">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="current-ace-base" class="current-ace-base"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
