@@ -2,12 +2,12 @@
   {
     "name": "Mi lista - 1",
     "description": "DAZN · LaLiga · Champions · TDT · Eurosport",
-    "url": "https://raw.githubusercontent.com/jesusparrat/effective-funicular/refs/heads/main/laughing-couscous.m3u"
+    "url": "https://raw.githubusercontent.com/jesusparrat/effective-funicular/refs/heads/main/effective-funicular.m3u"
   },
   {
     "name": "Mi lista - 2",
-    "description": "DAZN · LaLiga · Champions · TDT · Eurosport",
-    "url": "https://raw.githubusercontent.com/jesusparrat/effective-funicular/refs/heads/main/effective-funicular.m3u"
+    "description": "DAZN · LaLiga · Champions",
+    "url": "https://raw.githubusercontent.com/jesusparrat/effective-funicular/refs/heads/main/laughing-couscous.m3u"
   },
   {
     "name": "🇪🇸 iptv-org España",
