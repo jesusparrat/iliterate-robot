@@ -66,7 +66,7 @@ const GROUP_RULES = [
   { key: 'otros',      label: 'Otros deportes',      match: n => /sport|deporte|dazn|copa|supercopa|gol play/i.test(n) }
 ];
 
-const QUICK_FILTERS = ['fútbol', 'champions', 'laliga', 'f1', 'tdt', 'dazn', 'eurosport'];
+const QUICK_FILTERS = ['champions', 'laliga', 'f1', 'dazn', 'eurosport'];
 
 const state = {
   allChannels: [],
@@ -245,13 +245,35 @@ function bindTunnelModal() {
     closeTunnelModal();
     detectAceEngine();
   });
+  document.getElementById('btn-clear-tunnel').addEventListener('click', () => {
+  localStorage.removeItem('ace_tunnel_url');
+  document.getElementById('tunnel-url-input').value = '';
+  updateTunnelStatusCard();
+  updateAceStatusDisplay();
+  toast('Túnel eliminado', 'info');
+});
+}
+
+function updateTunnelStatusCard() {
+  const saved = localStorage.getItem('ace_tunnel_url');
+  const dot  = document.getElementById('tunnel-status-dot');
+  const text = document.getElementById('tunnel-status-text');
+  if (!dot || !text) return;
+  if (saved) {
+    dot.classList.add('is-active');
+    text.textContent = saved;
+    text.style.color = 'var(--text)';
+  } else {
+    dot.classList.remove('is-active');
+    text.textContent = 'Sin configurar';
+    text.style.color = '';
+  }
 }
 
 function openTunnelModal() {
   const saved = localStorage.getItem('ace_tunnel_url') || '';
   document.getElementById('tunnel-url-input').value = saved;
-  const info = document.getElementById('current-ace-base');
-  if (info) info.textContent = saved ? `Túnel actual: ${saved}` : 'Sin túnel configurado. Usando 127.0.0.1:6878';
+  updateTunnelStatusCard();
   document.getElementById('tunnel-modal-backdrop').classList.add('open');
 }
 
@@ -288,7 +310,16 @@ async function loadPlaylistOptions() {
     list.forEach(pl => {
       const card = document.createElement('button');
       card.className = 'pl-card';
-      card.innerHTML = `<span class="pl-card__name">${pl.name}</span><span class="pl-card__desc">${pl.description || ''}</span>`;
+      const initial = (pl.name || '?')[0].toUpperCase();
+      card.innerHTML = `
+        <div class="pl-card__avatar">${initial}</div>
+        <div class="pl-card__content">
+          <div class="pl-card__name">${pl.name}</div>
+          ${pl.description ? `<div class="pl-card__desc">${pl.description}</div>` : ''}
+        </div>
+        <svg class="pl-card__chevron" width="8" height="14" viewBox="0 0 8 14" fill="none">
+          <path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
       card.addEventListener('click', () => { dom.urlInput.value = pl.url; closePlaylists(); loadFromInput(); });
       grid.appendChild(card);
     });
