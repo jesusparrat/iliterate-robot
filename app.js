@@ -410,7 +410,6 @@ function loadFromInput() {
         }).map(ch => ({ ...ch, searchable: buildSearchText(ch) }));
 
         if (m3uWorker) { m3uWorker.terminate(); m3uWorker = null; }
-        state.suggestions = state.allChannels.slice(0, 12);
         buildGroups();
         setGroup('Todos');
         toast(`✅ ${state.allChannels.length} canales cargados`, 'ok');
@@ -622,9 +621,9 @@ async function waitForAceStream(aceUrl, signal) {
       clearTimeout(tid);
 
       if (res.ok) {
-        return res.url || aceUrl;
+        return (res.url || aceUrl).replace(/^http:\/\//i, 'https://');
       }
-    } catch (_) { /* 503 / timeout: motor buscando peers, reintentar */ }
+    } catch (_) { /* 503 / timeout */ }
 
     await new Promise(r => setTimeout(r, INTERVAL_MS));
   }
@@ -725,11 +724,19 @@ function startHLS(url) {
   vid.addEventListener('error', () => triggerFallback('Error de reproducción'), { once: true });
 
   if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
+// DESPUÉS — xhrSetup intercepta cada petición de HLS.js y fuerza HTTPS
     state.hlsInstance = new Hls({
       maxBufferLength: 30,
       enableWorker: true,
       lowLatencyMode: true,
-      xhrSetup: xhr => { xhr.withCredentials = false; }
+      xhrSetup: (xhr, url) => {
+        // Si HLS.js intenta cargar un segmento con http://, lo reescribe a https://
+        // antes de enviarlo — evita CSP connect-src errors en los .ts chunks
+        if (/^http:\/\//i.test(url)) {
+          xhr.open('GET', url.replace(/^http:\/\//i, 'https://'), true);
+        }
+        xhr.withCredentials = false;
+      }
     });
     state.hlsInstance.loadSource(url);
     state.hlsInstance.attachMedia(vid);
