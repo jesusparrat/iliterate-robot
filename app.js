@@ -134,6 +134,86 @@ function buildSearchText(ch) {
   return normalize([ch.name, ch.group, ch.category, ...(ch.badges || []), ...(ch.tags || [])].join(' '));
 }
 
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+// NUEVO: gestión de tabs principales (Canales / EPG / Motor ACE)
+
+function initTabs() {
+  const tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
+  const tabPanels = document.querySelectorAll('.tab-panel[id^="tab-"]');
+
+  function activateTab(tabId) {
+    tabBtns.forEach(btn => {
+      const isActive = btn.dataset.tab === tabId;
+      btn.classList.toggle('tab-btn--active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    tabPanels.forEach(panel => {
+      const isActive = panel.id === `tab-${tabId}`;
+      panel.classList.toggle('tab-panel--active', isActive);
+      panel.hidden = !isActive;
+    });
+  }
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
+
+  // Botones con data-goto-tab (p.ej. el banner del túnel ACE)
+  document.querySelectorAll('[data-goto-tab]').forEach(el => {
+    el.addEventListener('click', () => activateTab(el.dataset.gotoTab));
+  });
+
+  activateTab('channels');
+}
+
+// ─── AceStream status ─────────────────────────────────────────────────────────
+// MODIFICADO: setAceStatus reemplaza updateAceStatusDisplay con dot + label
+
+function setAceStatus(state) { // state: 'connected' | 'connecting' | 'error' | 'idle'
+  const el = document.getElementById('ace-status');
+  const label = document.getElementById('ace-status-label');
+  if (!el) return;
+
+  el.classList.remove('is-connected', 'is-connecting', 'is-error');
+  const labels = {
+    connected:  { cls: 'is-connected',  text: 'ACE ✓' },
+    connecting: { cls: 'is-connecting', text: 'ACE…'  },
+    error:      { cls: 'is-error',      text: 'ACE ✗' },
+    idle:       { cls: '',              text: 'ACE'    },
+  };
+  const { cls, text } = labels[state] || labels.idle;
+  if (cls) el.classList.add(cls);
+  if (label) label.textContent = text;
+}
+
+function updateAceStatusDisplay() {
+  const base = getAceBase();
+  const el = dom.aceStatus;
+  if (!el) return;
+
+  if (SAME_ORIGIN_ACE) {
+    setAceStatus('connected');
+    el.title = 'Docker proxy activo';
+  } else if (localStorage.getItem('ace_tunnel_url')) {
+    setAceStatus('connecting');
+    el.title = `Túnel: ${base}`;
+  } else {
+    setAceStatus('idle');
+    el.title = 'Motor local 127.0.0.1:6878 (sin HTTPS)';
+  }
+
+  el.style.cursor = IS_GITHUB_PAGES ? 'pointer' : 'default';
+  if (IS_GITHUB_PAGES) {
+    el.addEventListener('click', () => {
+      // Navegar al tab de settings en lugar de abrir modal flotante
+      const tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
+      tabBtns.forEach(btn => {
+        if (btn.dataset.tab === 'settings') btn.click();
+      });
+    }, { once: true });
+  }
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function init() {
@@ -142,10 +222,11 @@ function init() {
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
+  initTabs(); // NUEVO: inicializar sistema de tabs
   loadPlaylistOptions();
   buildQuickFilters();
   bindUI();
-  bindTunnelModal();
+  bindTunnelSettings(); // MODIFICADO: antes bindTunnelModal, ahora apunta al tab
   observer.observe(dom.sentinel);
   updateAceStatusDisplay();
 
@@ -155,29 +236,6 @@ function init() {
 function updateTopbarHeight() {
   const topbar = document.querySelector('.topbar');
   if (topbar) document.documentElement.style.setProperty('--topbar-h', topbar.offsetHeight + 'px');
-}
-
-function updateAceStatusDisplay() {
-  const base = getAceBase();
-  const el = dom.aceStatus;
-  if (!el) return;
-
-  if (SAME_ORIGIN_ACE) {
-    el.className = 'ace-status ace-status--docker';
-    el.title = 'Docker proxy activo';
-    el.innerHTML = '🐳 Docker';
-  } else if (localStorage.getItem('ace_tunnel_url')) {
-    el.className = 'ace-status ace-status--tunnel';
-    el.title = `Túnel: ${base}`;
-    el.innerHTML = '⚡ Túnel ACE';
-  } else {
-    el.className = 'ace-status ace-status--local';
-    el.title = 'Motor local 127.0.0.1:6878 (sin HTTPS)';
-    el.innerHTML = '🔌 Local';
-  }
-
-  el.style.cursor = IS_GITHUB_PAGES ? 'pointer' : 'default';
-  if (IS_GITHUB_PAGES) el.addEventListener('click', openTunnelModal, { once: true });
 }
 
 // ─── UI Bindings ─────────────────────────────────────────────────────────────
@@ -220,38 +278,54 @@ function bindUI() {
     setSidebar(!dom.sidebar.classList.contains('is-open'))
   );
   document.getElementById('btn-back-to-list').addEventListener('click', () => setSidebar(true));
-  document.getElementById('btn-configure-tunnel').addEventListener('click', openTunnelModal);
+
+  // MODIFICADO: btn-configure-tunnel ahora tiene data-goto-tab="settings" en el HTML,
+  // por lo que initTabs() lo gestiona automáticamente. Sin listener manual aquí.
 
   let timer;
   dom.searchInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(applyFilter, 120); });
   dom.searchInput.addEventListener('keydown', handleSearchKeys);
 }
 
-function bindTunnelModal() {
-  document.getElementById('btn-close-tunnel-modal').addEventListener('click', closeTunnelModal);
-  document.getElementById('tunnel-modal-backdrop').addEventListener('click', e => {
-    if (e.target.id === 'tunnel-modal-backdrop') closeTunnelModal();
-  });
-  document.getElementById('btn-save-tunnel').addEventListener('click', () => {
-    const val = document.getElementById('tunnel-url-input').value.trim();
-    if (!val || !/^https?:\/\//i.test(val)) {
-      toast('Introduce una URL válida (https://…)', 'error');
-      return;
-    }
-    const clean = val.replace(/\/$/, '');
-    localStorage.setItem('ace_tunnel_url', clean);
-    toast(`✅ Túnel guardado: ${clean}`, 'ok');
-    updateAceStatusDisplay();
-    closeTunnelModal();
-    detectAceEngine();
-  });
-  document.getElementById('btn-clear-tunnel').addEventListener('click', () => {
-  localStorage.removeItem('ace_tunnel_url');
-  document.getElementById('tunnel-url-input').value = '';
+// MODIFICADO: antes bindTunnelModal (apuntaba al modal flotante #tunnel-modal-backdrop)
+// Ahora bindTunnelSettings apunta a los elementos dentro del tab #tab-settings
+function bindTunnelSettings() {
+  const btnSave = document.getElementById('btn-save-tunnel');
+  const btnClear = document.getElementById('btn-clear-tunnel');
+
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      const val = document.getElementById('tunnel-url-input').value.trim();
+      if (!val || !/^https?:\/\//i.test(val)) {
+        toast('Introduce una URL válida (https://…)', 'error');
+        return;
+      }
+      const clean = val.replace(/\/$/, '');
+      localStorage.setItem('ace_tunnel_url', clean);
+      toast(`✅ Túnel guardado: ${clean}`, 'ok');
+      updateAceStatusDisplay();
+      updateTunnelStatusCard();
+      detectAceEngine();
+    });
+  }
+
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      localStorage.removeItem('ace_tunnel_url');
+      const input = document.getElementById('tunnel-url-input');
+      if (input) input.value = '';
+      updateTunnelStatusCard();
+      updateAceStatusDisplay();
+      toast('Túnel eliminado', 'info');
+    });
+  }
+
+  // Rellenar el input con el túnel guardado al cargar
+  const saved = localStorage.getItem('ace_tunnel_url') || '';
+  const input = document.getElementById('tunnel-url-input');
+  if (input && saved) input.value = saved;
+
   updateTunnelStatusCard();
-  updateAceStatusDisplay();
-  toast('Túnel eliminado', 'info');
-});
 }
 
 function updateTunnelStatusCard() {
@@ -270,17 +344,13 @@ function updateTunnelStatusCard() {
   }
 }
 
+// openTunnelModal y closeTunnelModal se mantienen como no-ops compatibles
+// por si algún código externo los llama, pero ya no abren ningún modal flotante
 function openTunnelModal() {
-  const saved = localStorage.getItem('ace_tunnel_url') || '';
-  document.getElementById('tunnel-url-input').value = saved;
-  updateTunnelStatusCard();
-  document.getElementById('tunnel-modal-backdrop').classList.add('open');
+  const tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
+  tabBtns.forEach(btn => { if (btn.dataset.tab === 'settings') btn.click(); });
 }
-
-function closeTunnelModal() {
-  document.getElementById('tunnel-modal-backdrop').classList.remove('open');
-  updateAceStatusDisplay();
-}
+function closeTunnelModal() { /* no-op: el tab settings no se "cierra" */ }
 
 function setSidebar(open) {
   dom.sidebar.classList.toggle('is-open', !!open);
@@ -589,14 +659,10 @@ async function waitForAceStream(aceUrl, signal) {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 3000);
 
-      // GET en lugar de HEAD: AceStream gestiona GET mejor y res.url
-      // nos da la URL final del .m3u8 tras el redirect reescrito por nginx
       const res = await fetch(aceUrl, { signal: ctrl.signal });
       clearTimeout(tid);
 
       if (res.ok) {
-        // res.url es la URL final tras redirect (ej: https://tunnel.../ace/HASH/0/manifest.m3u8)
-        // Se la pasamos directamente a hls.js para evitar doble redirect
         return res.url || aceUrl;
       }
     } catch (_) { /* 503 / timeout: motor buscando peers, reintentar */ }
@@ -630,7 +696,6 @@ function playStream(chId, streamIndex) {
     const aceBase = getAceBase();
     const aceHlsUrl = `${aceBase}/ace/getstream?id=${encodeURIComponent(hash)}`;
 
-    // Advertencia si estamos en Pages sin túnel HTTPS
     const isHttp = /^http:\/\//i.test(aceHlsUrl);
     const isHttpsPage = location.protocol === 'https:';
     if (isHttpsPage && isHttp) {
@@ -641,9 +706,15 @@ function playStream(chId, streamIndex) {
     const spinnerText = dom.playerSpinner.querySelector('.spinner-text');
     if (spinnerText) spinnerText.textContent = 'Conectando con AceStream…';
 
+    setAceStatus('connecting');
+
     waitForAceStream(aceHlsUrl, state.acePollingAbort.signal)
-      .then(url => startHLS(url))
+      .then(url => {
+        setAceStatus('connected');
+        startHLS(url);
+      })
       .catch(err => {
+        setAceStatus('error');
         if (err.name === 'AbortError') return;
         if (err.message === 'timeout') {
           triggerFallback('Motor AceStream no respondió. ¿Está corriendo? Configura el túnel.');
@@ -733,6 +804,7 @@ function setPlayerIdle() {
   document.getElementById('now-playing').classList.add('empty');
   document.getElementById('np-name').textContent = 'Sin canal activo';
   document.getElementById('np-sub').textContent = 'Carga una lista y elige un canal';
+  setAceStatus('idle');
 }
 
 function retryPlay() {
@@ -752,16 +824,20 @@ function copyToClipboard(url) {
 
 async function detectAceEngine() {
   const base = getAceBase();
+  setAceStatus('connecting');
   try {
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 2000);
     const res = await fetch(`${base}/webui/api/service?method=get_version`, { signal: ctrl.signal });
     if (res.ok) {
       state.aceAvailable = true;
-      if (dom.aceStatus) dom.aceStatus.classList.add('ace-status--online');
+      setAceStatus('connected');
       toast('✅ Motor AceStream detectado', 'ok');
+    } else {
+      setAceStatus('error');
     }
   } catch (_) {
+    setAceStatus('idle');
     if (IS_GITHUB_PAGES && !localStorage.getItem('ace_tunnel_url')) {
       dom.aceTunnelBanner?.classList.remove('hidden');
     }

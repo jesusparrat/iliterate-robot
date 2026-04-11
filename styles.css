@@ -489,3 +489,202 @@ small { font-size: 0.8em; }
 .modal-hint-text code { background: rgba(76,201,240,.1); color: var(--accent); padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.85em; }
 
 /* ── Stream
+/* ============================================================
+   AÑADIR AL FINAL DE styles.css — Fase 1
+   Nuevos componentes: tabs, EPG placeholder, settings panel
+   ============================================================ */
+
+/* Fuente Satoshi */
+body {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ---- CONTENT AREA (reemplaza player-area en el layout) ---- */
+.content-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ---- TAB NAV ---- */
+.tab-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0 var(--space-4);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 180ms ease, border-color 180ms ease;
+  position: relative;
+  top: 1px; /* alinea el borde inferior con el border del nav */
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn--active,
+.tab-btn[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-btn svg { flex-shrink: 0; }
+
+.tab-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: oklch(from var(--accent, #4f98a3) l c h / 0.15);
+  color: var(--accent, #4f98a3);
+  padding: 2px 6px;
+  border-radius: 99px;
+}
+
+/* ---- TAB PANELS ---- */
+.tab-panel {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.tab-panel[hidden] { display: none; }
+.tab-panel--active { display: flex; }
+
+/* ---- EPG PLACEHOLDER ---- */
+.epg-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 1;
+  padding: 3rem 2rem;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+.epg-placeholder__icon {
+  opacity: 0.35;
+  margin-bottom: 0.5rem;
+}
+.epg-placeholder__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.epg-placeholder__sub {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  max-width: 40ch;
+  margin: 0;
+}
+.epg-placeholder__soon { margin-top: 0.5rem; }
+
+/* ---- BADGE ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+.badge--accent {
+  background: oklch(from var(--accent, #4f98a3) l c h / 0.15);
+  color: var(--accent, #4f98a3);
+  border: 1px solid oklch(from var(--accent, #4f98a3) l c h / 0.3);
+}
+
+/* ---- SETTINGS PANEL ---- */
+.settings-panel {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 680px;
+  width: 100%;
+}
+.settings-header { }
+.settings-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.25rem;
+}
+.settings-sub {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.settings-info-box {
+  display: flex;
+  gap: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.settings-info-box__icon { flex-shrink: 0; font-size: 1.1rem; margin-top: 1px; }
+.settings-info-box strong { color: var(--text); display: block; margin-bottom: 0.25rem; }
+.settings-info-box p { margin: 0; }
+
+/* ---- ACE STATUS con label ---- */
+.ace-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ace-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint, #5a5957);
+  flex-shrink: 0;
+}
+/* Estados del dot — el app.js los aplica como clases en #ace-status */
+#ace-status.is-connected .ace-status__dot { background: #6daa45; box-shadow: 0 0 0 3px oklch(0.6 0.15 142 / 0.2); }
+#ace-status.is-connecting .ace-status__dot { background: #e8af34; animation: pulse-dot 1.2s ease-in-out infinite; }
+#ace-status.is-error .ace-status__dot { background: #dd6974; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---- RESPONSIVE MÓVIL ---- */
+@media (max-width: 600px) {
+  .tab-btn { padding: 10px 12px; font-size: 0.8rem; }
+  .tab-btn span:not(.tab-badge) { display: none; } /* solo icono en móvil */
+  .settings-panel { padding: 1rem; }
+}

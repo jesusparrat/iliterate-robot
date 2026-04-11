@@ -1,25 +1,23 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-
-  <!-- CSP: unsafe-eval necesario para hls.js -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src  'self' 'unsafe-eval' https://cdn.jsdelivr.net;
-    style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src    https://fonts.gstatic.com;
+    script-src  'self' 'unsafe-eval' https://cdn.jsdelivr.net https://api.fontshare.com;
+    style-src   'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com;
+    font-src    https://fonts.gstatic.com https://api.fontshare.com;
     img-src     'self' https: data: blob:;
     media-src   'self' https: blob:;
     connect-src 'self' https: blob:;
     worker-src  'self' blob:;
   ">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#08111f">
+  <meta name="theme-color" content="#0d1117">
   <title>iliterate-robot · IPTV</title>
   <link rel="manifest" href="./manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
 </head>
@@ -30,8 +28,11 @@
   <header class="topbar" role="banner">
     <div class="topbar__left">
       <button class="topbar__logo-btn" id="sidebar-toggle" aria-label="Menú canales" aria-expanded="false">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        <!-- CAMBIO: nuevo SVG de antena de TV en lugar del icono genérico de menú -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="7" width="20" height="13" rx="2"/>
+          <path d="M8 7L12 3l4 4"/>
+          <line x1="12" y1="3" x2="12" y2="7"/>
         </svg>
         <span class="topbar__brand">iliterate-robot</span>
       </button>
@@ -44,7 +45,11 @@
       </div>
     </div>
     <div class="topbar__right">
-      <div id="ace-status" class="ace-status" title="Estado motor AceStream"></div>
+      <!-- CAMBIO: ace-status ahora incluye label de texto visible -->
+      <div id="ace-status" class="ace-status" title="Estado motor AceStream">
+        <span class="ace-status__dot"></span>
+        <span class="ace-status__label" id="ace-status-label">ACE</span>
+      </div>
     </div>
   </header>
 
@@ -72,78 +77,206 @@
       </div>
     </aside>
 
-    <!-- PLAYER AREA -->
-    <section class="player-area" aria-label="Reproductor">
-      <div id="player-panel" class="player-panel is-idle">
-        <div id="player-wrap" class="player-wrap">
-          <video id="video-el" playsinline webkit-playsinline muted></video>
-          <div id="player-overlay" class="player-overlay">
-            <div class="player-idle-content">
-              <div class="player-idle-icon">📺</div>
-              <p class="player-idle-title">Selecciona un canal</p>
-              <p class="player-idle-sub">Carga una lista M3U y elige qué ver</p>
-              <button id="btn-show-channels" class="btn btn-primary">Ver canales</button>
+    <!-- ÁREA DE CONTENIDO CON TABS -->
+    <!-- CAMBIO: se introduce sistema de tabs. La sección derecha ahora tiene nav + 3 paneles -->
+    <section class="content-area" aria-label="Área principal">
+
+      <!-- NAV TABS -->
+      <nav class="tab-nav" role="tablist" aria-label="Secciones principales">
+        <button class="tab-btn tab-btn--active" role="tab" aria-selected="true"
+                aria-controls="tab-channels" id="tabnav-channels" data-tab="channels">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="13" rx="2"/>
+            <path d="M8 7L12 3l4 4"/>
+          </svg>
+          Canales
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false"
+                aria-controls="tab-epg" id="tabnav-epg" data-tab="epg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          EPG
+          <span class="tab-badge">Próximo</span>
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false"
+                aria-controls="tab-settings" id="tabnav-settings" data-tab="settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+          Motor ACE
+        </button>
+      </nav>
+
+      <!-- TAB: CANALES -->
+      <div id="tab-channels" class="tab-panel tab-panel--active" role="tabpanel" aria-labelledby="tabnav-channels">
+        <div id="player-panel" class="player-panel is-idle">
+          <div id="player-wrap" class="player-wrap">
+            <video id="video-el" playsinline webkit-playsinline muted></video>
+            <div id="player-overlay" class="player-overlay">
+              <div class="player-idle-content">
+                <div class="player-idle-icon">📺</div>
+                <p class="player-idle-title">Selecciona un canal</p>
+                <p class="player-idle-sub">Carga una lista M3U y elige qué ver</p>
+                <button id="btn-show-channels" class="btn btn-primary">Ver canales</button>
+              </div>
+            </div>
+            <div id="player-spinner" class="player-spinner hidden">
+              <div class="spinner-ring"></div>
+              <div class="spinner-text">Cargando…</div>
+            </div>
+            <div id="player-error" class="player-error hidden">
+              <div class="player-error-icon">⚠️</div>
+              <p id="player-error-text" class="player-error-text">Error de reproducción</p>
+              <div class="player-error-actions">
+                <button id="btn-retry" class="btn btn-primary btn-sm">Reintentar</button>
+                <button id="btn-back-to-list" class="btn btn-surface btn-sm">Ver lista</button>
+              </div>
+            </div>
+            <div class="player-controls">
+              <button id="btn-fullscreen" class="btn-icon player-ctrl" aria-label="Pantalla completa" title="Pantalla completa">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                  <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                </svg>
+              </button>
+              <button id="btn-pip" class="btn-icon player-ctrl" aria-label="Picture in Picture" title="PiP">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="11" width="8" height="5" rx="1"/>
+                </svg>
+              </button>
             </div>
           </div>
-          <div id="player-spinner" class="player-spinner hidden">
-            <div class="spinner-ring"></div>
-            <div class="spinner-text">Cargando…</div>
-          </div>
-          <div id="player-error" class="player-error hidden">
-            <div class="player-error-icon">⚠️</div>
-            <p id="player-error-text" class="player-error-text">Error de reproducción</p>
-            <div class="player-error-actions">
-              <button id="btn-retry" class="btn btn-primary btn-sm">Reintentar</button>
-              <button id="btn-back-to-list" class="btn btn-surface btn-sm">Ver lista</button>
+
+          <!-- NOW PLAYING -->
+          <div id="now-playing" class="now-playing empty">
+            <div id="np-logo-wrap" class="np-logo-wrap">
+              <img id="np-logo" src="" alt="" style="display:none">
+              <div id="np-logo-fallback" style="display:grid">📺</div>
+            </div>
+            <div class="np-info">
+              <div id="np-name" class="np-name">Sin canal activo</div>
+              <div id="np-sub" class="np-sub">Carga una lista y elige un canal</div>
             </div>
           </div>
-          <div class="player-controls">
-            <button id="btn-fullscreen" class="btn-icon player-ctrl" aria-label="Pantalla completa" title="Pantalla completa">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
-                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-              </svg>
-            </button>
-            <button id="btn-pip" class="btn-icon player-ctrl" aria-label="Picture in Picture" title="PiP">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="11" width="8" height="5" rx="1"/>
-              </svg>
-            </button>
+
+          <!-- ACE TUNNEL BANNER -->
+          <div id="ace-tunnel-banner" class="ace-tunnel-banner hidden">
+            <span>⚡ Para streams ACE desde GitHub Pages necesitas un túnel HTTPS.</span>
+            <!-- CAMBIO: el botón ahora navega al tab de configuración en lugar de abrir modal -->
+            <button id="btn-configure-tunnel" class="btn btn-primary btn-sm" data-goto-tab="settings">Configurar</button>
           </div>
         </div>
 
-        <!-- NOW PLAYING -->
-        <div id="now-playing" class="now-playing empty">
-          <div id="np-logo-wrap" class="np-logo-wrap">
-            <img id="np-logo" src="" alt="" style="display:none">
-            <div id="np-logo-fallback" style="display:grid">📺</div>
+        <!-- HOME CONTENT (visible en idle) -->
+        <div class="home-content">
+          <div class="home-section">
+            <h2 class="home-section__title">Acceso rápido</h2>
+            <div id="quick-filters" class="chips-row"></div>
           </div>
-          <div class="np-info">
-            <div id="np-name" class="np-name">Sin canal activo</div>
-            <div id="np-sub" class="np-sub">Carga una lista y elige un canal</div>
+          <div class="home-section">
+            <h2 class="home-section__title">Canales sugeridos</h2>
+            <div id="suggested-channels" class="chips-row">
+              <div class="ch-sub">Carga una lista M3U para ver sugerencias.</div>
+            </div>
           </div>
-        </div>
-
-        <!-- ACE TUNNEL BANNER -->
-        <div id="ace-tunnel-banner" class="ace-tunnel-banner hidden">
-          <span>⚡ Para streams ACE desde GitHub Pages necesitas un túnel HTTPS.</span>
-          <button id="btn-configure-tunnel" class="btn btn-primary btn-sm">Configurar</button>
         </div>
       </div>
 
-      <!-- HOME CONTENT (visible en idle) -->
-      <div class="home-content">
-        <div class="home-section">
-          <h2 class="home-section__title">Acceso rápido</h2>
-          <div id="quick-filters" class="chips-row"></div>
-        </div>
-        <div class="home-section">
-          <h2 class="home-section__title">Canales sugeridos</h2>
-          <div id="suggested-channels" class="chips-row">
-            <div class="ch-sub">Carga una lista M3U para ver sugerencias.</div>
+      <!-- TAB: EPG -->
+      <!-- CAMBIO: nueva sección EPG (stub) — la lógica se desarrollará en Fase 3 -->
+      <div id="tab-epg" class="tab-panel" role="tabpanel" aria-labelledby="tabnav-epg" hidden>
+        <div class="epg-placeholder">
+          <div class="epg-placeholder__icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <line x1="8" y1="14" x2="16" y2="14"/>
+              <line x1="8" y1="18" x2="12" y2="18"/>
+            </svg>
+          </div>
+          <h2 class="epg-placeholder__title">Guía de programación (EPG)</h2>
+          <p class="epg-placeholder__sub">Próximamente podrás cargar una URL de EPG en formato XMLTV<br>para ver la programación de tus canales en tiempo real.</p>
+          <div class="epg-placeholder__soon">
+            <span class="badge badge--accent">En desarrollo</span>
           </div>
         </div>
       </div>
+
+      <!-- TAB: MOTOR ACE (antes era el tunnel-modal) -->
+      <!-- CAMBIO: la configuración del túnel se mueve de un modal flotante a un tab permanente -->
+      <div id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tabnav-settings" hidden>
+        <div class="settings-panel">
+          <div class="settings-header">
+            <h2 class="settings-title">Motor AceStream</h2>
+            <p class="settings-sub">Conecta tu motor local dockerizado con GitHub Pages mediante un túnel HTTPS.</p>
+          </div>
+
+          <!-- Estado actual -->
+          <div id="tunnel-status-card" class="tunnel-status-card">
+            <div class="tunnel-status-dot" id="tunnel-status-dot"></div>
+            <span id="tunnel-status-text" class="tunnel-status-text">Sin configurar</span>
+            <button id="btn-clear-tunnel" class="btn btn-surface btn-sm">Limpiar</button>
+          </div>
+
+          <!-- Pasos -->
+          <div class="tunnel-steps">
+            <div class="tunnel-step">
+              <div class="tunnel-step__num">1</div>
+              <div class="tunnel-step__body">
+                <div class="tunnel-step__title">Levanta el motor Docker</div>
+                <div class="tunnel-step__sub">En la carpeta del repo clonado</div>
+                <div class="code-block"><code>docker compose up -d</code></div>
+              </div>
+            </div>
+            <div class="tunnel-step">
+              <div class="tunnel-step__num">2</div>
+              <div class="tunnel-step__body">
+                <div class="tunnel-step__title">Instala cloudflared <span class="tunnel-step__tag">solo una vez</span></div>
+                <div class="code-block"><code>winget install Cloudflare.cloudflared</code></div>
+              </div>
+            </div>
+            <div class="tunnel-step">
+              <div class="tunnel-step__num">3</div>
+              <div class="tunnel-step__body">
+                <div class="tunnel-step__title">Crea el túnel temporal</div>
+                <div class="tunnel-step__sub">Deja esta terminal abierta mientras ves contenido</div>
+                <div class="code-block"><code>cloudflared tunnel --url http://localhost:8080</code></div>
+              </div>
+            </div>
+            <div class="tunnel-step tunnel-step--highlight">
+              <div class="tunnel-step__num tunnel-step__num--accent">4</div>
+              <div class="tunnel-step__body">
+                <div class="tunnel-step__title">Pega la URL HTTPS que genera cloudflared</div>
+                <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-banana.trycloudflare.com</code></div>
+                <div class="tunnel-input-row">
+                  <input id="tunnel-url-input" type="url"
+                    placeholder="https://xxxx-xxxx.trycloudflare.com"
+                    autocomplete="off" spellcheck="false"
+                    class="tunnel-input">
+                  <button id="btn-save-tunnel" class="btn btn-primary btn-sm">Guardar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Info sobre el docker-compose -->
+          <div class="settings-info-box">
+            <div class="settings-info-box__icon">ℹ️</div>
+            <div>
+              <strong>¿No tienes el motor configurado?</strong>
+              <p>Clona el repo, asegúrate de tener Docker instalado, y ejecuta <code class="inline-code">docker compose up -d</code> desde la raíz del proyecto. El motor AceStream quedará disponible en <code class="inline-code">http://localhost:8080</code>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </section>
   </main>
 
@@ -183,74 +316,7 @@
     </div>
   </div>
 
-  <!-- MODAL CONFIGURAR TÚNEL ACE -->
-  <div id="tunnel-modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Configurar túnel AceStream">
-    <div class="modal modal--wide">
-      <div class="modal-header">
-        <div class="modal-icon-badge">⚡</div>
-        <div class="modal-title-wrap">
-          <h2 class="modal-title">Túnel AceStream</h2>
-          <p class="modal-meta">Conecta tu motor local con GitHub Pages</p>
-        </div>
-        <button id="btn-close-tunnel-modal" class="btn-icon modal-close" aria-label="Cerrar">✕</button>
-      </div>
-      <div class="modal-body">
 
-        <!-- Estado actual -->
-        <div id="tunnel-status-card" class="tunnel-status-card">
-          <div class="tunnel-status-dot" id="tunnel-status-dot"></div>
-          <span id="tunnel-status-text" class="tunnel-status-text">Sin configurar</span>
-          <button id="btn-clear-tunnel" class="btn btn-surface btn-sm">Limpiar</button>
-        </div>
-
-        <!-- Pasos -->
-        <div class="tunnel-steps">
-
-          <div class="tunnel-step">
-            <div class="tunnel-step__num">1</div>
-            <div class="tunnel-step__body">
-              <div class="tunnel-step__title">Levanta el motor Docker</div>
-              <div class="tunnel-step__sub">En la carpeta del repo clonado</div>
-              <div class="code-block"><code>docker compose up -d</code></div>
-            </div>
-          </div>
-
-          <div class="tunnel-step">
-            <div class="tunnel-step__num">2</div>
-            <div class="tunnel-step__body">
-              <div class="tunnel-step__title">Instala cloudflared <span class="tunnel-step__tag">solo una vez</span></div>
-              <div class="code-block"><code>winget install Cloudflare.cloudflared</code></div>
-            </div>
-          </div>
-
-          <div class="tunnel-step">
-            <div class="tunnel-step__num">3</div>
-            <div class="tunnel-step__body">
-              <div class="tunnel-step__title">Crea el túnel temporal</div>
-              <div class="tunnel-step__sub">Deja esta terminal abierta mientras ves contenido</div>
-              <div class="code-block"><code>cloudflared tunnel --url http://localhost:8080</code></div>
-            </div>
-          </div>
-
-          <div class="tunnel-step tunnel-step--highlight">
-            <div class="tunnel-step__num tunnel-step__num--accent">4</div>
-            <div class="tunnel-step__body">
-              <div class="tunnel-step__title">Pega la URL HTTPS que genera cloudflared</div>
-              <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-banana.trycloudflare.com</code></div>
-              <div class="tunnel-input-row">
-                <input id="tunnel-url-input" type="url"
-                  placeholder="https://xxxx-xxxx.trycloudflare.com"
-                  autocomplete="off" spellcheck="false"
-                  class="tunnel-input">
-                <button id="btn-save-tunnel" class="btn btn-primary btn-sm">Guardar</button>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script src="./app.js"></script>
 </body>

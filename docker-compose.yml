@@ -1,25 +1,40 @@
-services:
-  acestream:
-    image: jopsis/aceserve:latest
-    container_name: acestream
-    restart: unless-stopped
-    ports:
-      - "6878:6878"
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+# docker-compose.yml
+# CAMBIO respecto a la versión anterior:
+# - Usa la imagen pública de magnetikonline/docker-acestream-server
+#   en lugar del Dockerfile rudimentario propio
+# - Añade un proxy nginx que inyecta CORS headers
+#   (necesario para llamadas desde GitHub Pages a través del túnel)
+# - Puerto 8080 expuesto al host (cloudflared apunta a este puerto)
 
-  nginx:
-    image: nginx:alpine
-    container_name: iliterate-robot-nginx
+services:
+
+  # Motor AceStream — imagen pública, ya probada y funcional
+  acestream:
+    image: magnetikonline/acestream-server:latest
+    # Si la imagen no está en Docker Hub, construirla localmente:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.ace
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "6878:6878"   # API HTTP nativa de AceStream
+    networks:
+      - ace-net
+
+  # Proxy nginx: traduce localhost:8080 → acestream:6878
+  # e inyecta CORS headers para que funcione desde GitHub Pages
+  ace-proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"     # cloudflared apunta aquí
     volumes:
-      - ./:/usr/share/nginx/html:ro
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ace-cors.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - acestream
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    networks:
+      - ace-net
+
+networks:
+  ace-net:
+    driver: bridge
