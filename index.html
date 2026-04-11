@@ -2,16 +2,18 @@
 <html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
+
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src  'self' 'unsafe-eval' https://cdn.jsdelivr.net https://api.fontshare.com;
     style-src   'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com;
-    font-src    https://fonts.gstatic.com https://api.fontshare.com;
+    font-src    https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com data:;
     img-src     'self' https: data: blob:;
     media-src   'self' https: blob:;
     connect-src 'self' https: blob:;
     worker-src  'self' blob:;
   ">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d1117">
   <title>iliterate-robot · IPTV</title>
@@ -20,15 +22,216 @@
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+
+  <style>
+    /* Overrides quirúrgicos para acercar la UI al patrón Nodecast-TV sin rehacer styles.css */
+    .content-area {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #0d1117;
+    }
+
+    .tab-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: #111827;
+      min-height: 50px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      color: rgba(255,255,255,.68);
+      border: 0;
+      background: transparent;
+      border-bottom: 2px solid transparent;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn--active,
+    .tab-btn[aria-selected="true"] {
+      color: #7dd3fc;
+      border-bottom-color: #7dd3fc;
+    }
+
+    .tab-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      background: rgba(125, 211, 252, .12);
+      color: #7dd3fc;
+    }
+
+    .tab-panel {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: none;
+    }
+    .tab-panel--active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-panel {
+      border-radius: 0;
+      border: 0;
+      box-shadow: none;
+      background: #0b1220;
+    }
+
+    .player-wrap {
+      min-height: min(62vh, 760px);
+      background: #000;
+    }
+
+    .settings-panel {
+      max-width: 820px;
+      width: 100%;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .settings-title {
+      margin: 0 0 6px;
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .settings-sub {
+      margin: 0;
+      color: rgba(255,255,255,.68);
+      line-height: 1.55;
+    }
+
+    .settings-info-box {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+      color: rgba(255,255,255,.75);
+    }
+
+    .settings-info-box strong {
+      color: #fff;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .epg-placeholder {
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 32px 20px;
+      color: rgba(255,255,255,.72);
+    }
+
+    .epg-placeholder__title {
+      margin: 14px 0 8px;
+      color: #fff;
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+
+    .epg-placeholder__sub {
+      margin: 0;
+      line-height: 1.6;
+      max-width: 48ch;
+    }
+
+    .badge.badge--accent {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, .12);
+      color: #7dd3fc;
+      border: 1px solid rgba(125, 211, 252, .22);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    .ace-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255,255,255,.78);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .ace-status__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      flex: 0 0 auto;
+    }
+
+    #ace-status.is-connected .ace-status__dot {
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34,197,94,.16);
+    }
+
+    #ace-status.is-connecting .ace-status__dot {
+      background: #f59e0b;
+      box-shadow: 0 0 0 4px rgba(245,158,11,.14);
+    }
+
+    #ace-status.is-error .ace-status__dot {
+      background: #ef4444;
+      box-shadow: 0 0 0 4px rgba(239,68,68,.12);
+    }
+
+    @media (max-width: 860px) {
+      .player-wrap { min-height: 44vh; }
+    }
+
+    @media (max-width: 600px) {
+      .tab-btn {
+        padding: 12px 10px;
+        gap: 6px;
+        font-size: 13px;
+      }
+      .tab-badge { display: none; }
+      .settings-panel { padding: 16px; }
+    }
+  </style>
 </head>
 <body>
   <div id="toast-container"></div>
 
-  <!-- TOPBAR -->
   <header class="topbar" role="banner">
     <div class="topbar__left">
       <button class="topbar__logo-btn" id="sidebar-toggle" aria-label="Menú canales" aria-expanded="false">
-        <!-- CAMBIO: nuevo SVG de antena de TV en lugar del icono genérico de menú -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="2" y="7" width="20" height="13" rx="2"/>
           <path d="M8 7L12 3l4 4"/>
@@ -37,6 +240,7 @@
         <span class="topbar__brand">iliterate-robot</span>
       </button>
     </div>
+
     <div class="topbar__center">
       <div class="url-bar">
         <input id="url-input" type="url" placeholder="URL de lista M3U…" autocomplete="off" spellcheck="false">
@@ -44,8 +248,8 @@
         <button id="btn-open-playlists" class="btn btn-surface btn-sm">Listas</button>
       </div>
     </div>
+
     <div class="topbar__right">
-      <!-- CAMBIO: ace-status ahora incluye label de texto visible -->
       <div id="ace-status" class="ace-status" title="Estado motor AceStream">
         <span class="ace-status__dot"></span>
         <span class="ace-status__label" id="ace-status-label">ACE</span>
@@ -53,10 +257,7 @@
     </div>
   </header>
 
-  <!-- LAYOUT PRINCIPAL -->
   <main class="app-layout" role="main">
-
-    <!-- SIDEBAR -->
     <aside id="channel-panel" class="channel-panel" role="complementary" aria-label="Lista de canales">
       <div class="sidebar-search">
         <div class="search-wrap">
@@ -67,21 +268,20 @@
           <button id="btn-clear-search" class="btn-icon" aria-label="Limpiar búsqueda">✕</button>
         </div>
       </div>
+
       <div id="group-pills" class="group-pills" role="tablist" aria-label="Grupos de canales"></div>
+
       <div id="channel-scroll-wrap" class="channel-scroll-wrap">
         <div id="channel-list" class="channel-list" role="list"></div>
         <div id="scroll-sentinel" class="scroll-sentinel"></div>
       </div>
+
       <div class="sidebar-footer">
         <span id="sidebar-status" class="sidebar-status">Carga una lista M3U</span>
       </div>
     </aside>
 
-    <!-- ÁREA DE CONTENIDO CON TABS -->
-    <!-- CAMBIO: se introduce sistema de tabs. La sección derecha ahora tiene nav + 3 paneles -->
     <section class="content-area" aria-label="Área principal">
-
-      <!-- NAV TABS -->
       <nav class="tab-nav" role="tablist" aria-label="Secciones principales">
         <button class="tab-btn tab-btn--active" role="tab" aria-selected="true"
                 aria-controls="tab-channels" id="tabnav-channels" data-tab="channels">
@@ -89,8 +289,9 @@
             <rect x="2" y="7" width="20" height="13" rx="2"/>
             <path d="M8 7L12 3l4 4"/>
           </svg>
-          Canales
+          TV
         </button>
+
         <button class="tab-btn" role="tab" aria-selected="false"
                 aria-controls="tab-epg" id="tabnav-epg" data-tab="epg">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -102,6 +303,7 @@
           EPG
           <span class="tab-badge">Próximo</span>
         </button>
+
         <button class="tab-btn" role="tab" aria-selected="false"
                 aria-controls="tab-settings" id="tabnav-settings" data-tab="settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,11 +314,11 @@
         </button>
       </nav>
 
-      <!-- TAB: CANALES -->
       <div id="tab-channels" class="tab-panel tab-panel--active" role="tabpanel" aria-labelledby="tabnav-channels">
         <div id="player-panel" class="player-panel is-idle">
           <div id="player-wrap" class="player-wrap">
             <video id="video-el" playsinline webkit-playsinline muted></video>
+
             <div id="player-overlay" class="player-overlay">
               <div class="player-idle-content">
                 <div class="player-idle-icon">📺</div>
@@ -125,10 +327,12 @@
                 <button id="btn-show-channels" class="btn btn-primary">Ver canales</button>
               </div>
             </div>
+
             <div id="player-spinner" class="player-spinner hidden">
               <div class="spinner-ring"></div>
               <div class="spinner-text">Cargando…</div>
             </div>
+
             <div id="player-error" class="player-error hidden">
               <div class="player-error-icon">⚠️</div>
               <p id="player-error-text" class="player-error-text">Error de reproducción</p>
@@ -137,6 +341,7 @@
                 <button id="btn-back-to-list" class="btn btn-surface btn-sm">Ver lista</button>
               </div>
             </div>
+
             <div class="player-controls">
               <button id="btn-fullscreen" class="btn-icon player-ctrl" aria-label="Pantalla completa" title="Pantalla completa">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -152,7 +357,6 @@
             </div>
           </div>
 
-          <!-- NOW PLAYING -->
           <div id="now-playing" class="now-playing empty">
             <div id="np-logo-wrap" class="np-logo-wrap">
               <img id="np-logo" src="" alt="" style="display:none">
@@ -164,53 +368,37 @@
             </div>
           </div>
 
-          <!-- ACE TUNNEL BANNER -->
           <div id="ace-tunnel-banner" class="ace-tunnel-banner hidden">
             <span>⚡ Para streams ACE desde GitHub Pages necesitas un túnel HTTPS.</span>
-            <!-- CAMBIO: el botón ahora navega al tab de configuración en lugar de abrir modal -->
             <button id="btn-configure-tunnel" class="btn btn-primary btn-sm" data-goto-tab="settings">Configurar</button>
           </div>
         </div>
+      </div>
 
-        <!-- HOME CONTENT (visible en idle) -->
-        <div class="home-content">
-          <div class="home-section">
-            <h2 class="home-section__title">Acceso rápido</h2>
-            <div id="quick-filters" class="chips-row"></div>
-          </div>
-          <div class="home-section">
-            <h2 class="home-section__title">Canales sugeridos</h2>
-            <div id="suggested-channels" class="chips-row">
-              <div class="ch-sub">Carga una lista M3U para ver sugerencias.</div>
+      <div id="tab-epg" class="tab-panel" role="tabpanel" aria-labelledby="tabnav-epg" hidden>
+        <div class="epg-placeholder">
+          <div>
+            <div class="epg-placeholder__icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+                <line x1="8" y1="14" x2="16" y2="14"/>
+                <line x1="8" y1="18" x2="12" y2="18"/>
+              </svg>
+            </div>
+            <h2 class="epg-placeholder__title">Guía de programación (EPG)</h2>
+            <p class="epg-placeholder__sub">
+              Aquí iremos metiendo la parrilla XMLTV. De momento dejamos la estructura preparada y el player centrado en Live TV.
+            </p>
+            <div style="margin-top:12px">
+              <span class="badge badge--accent">En desarrollo</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- TAB: EPG -->
-      <!-- CAMBIO: nueva sección EPG (stub) — la lógica se desarrollará en Fase 3 -->
-      <div id="tab-epg" class="tab-panel" role="tabpanel" aria-labelledby="tabnav-epg" hidden>
-        <div class="epg-placeholder">
-          <div class="epg-placeholder__icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <line x1="8" y1="14" x2="16" y2="14"/>
-              <line x1="8" y1="18" x2="12" y2="18"/>
-            </svg>
-          </div>
-          <h2 class="epg-placeholder__title">Guía de programación (EPG)</h2>
-          <p class="epg-placeholder__sub">Próximamente podrás cargar una URL de EPG en formato XMLTV<br>para ver la programación de tus canales en tiempo real.</p>
-          <div class="epg-placeholder__soon">
-            <span class="badge badge--accent">En desarrollo</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB: MOTOR ACE (antes era el tunnel-modal) -->
-      <!-- CAMBIO: la configuración del túnel se mueve de un modal flotante a un tab permanente -->
       <div id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tabnav-settings" hidden>
         <div class="settings-panel">
           <div class="settings-header">
@@ -218,14 +406,12 @@
             <p class="settings-sub">Conecta tu motor local dockerizado con GitHub Pages mediante un túnel HTTPS.</p>
           </div>
 
-          <!-- Estado actual -->
           <div id="tunnel-status-card" class="tunnel-status-card">
             <div class="tunnel-status-dot" id="tunnel-status-dot"></div>
             <span id="tunnel-status-text" class="tunnel-status-text">Sin configurar</span>
             <button id="btn-clear-tunnel" class="btn btn-surface btn-sm">Limpiar</button>
           </div>
 
-          <!-- Pasos -->
           <div class="tunnel-steps">
             <div class="tunnel-step">
               <div class="tunnel-step__num">1</div>
@@ -235,26 +421,21 @@
                 <div class="code-block"><code>docker compose up -d</code></div>
               </div>
             </div>
+
             <div class="tunnel-step">
               <div class="tunnel-step__num">2</div>
-              <div class="tunnel-step__body">
-                <div class="tunnel-step__title">Instala cloudflared <span class="tunnel-step__tag">solo una vez</span></div>
-                <div class="code-block"><code>winget install Cloudflare.cloudflared</code></div>
-              </div>
-            </div>
-            <div class="tunnel-step">
-              <div class="tunnel-step__num">3</div>
               <div class="tunnel-step__body">
                 <div class="tunnel-step__title">Crea el túnel temporal</div>
                 <div class="tunnel-step__sub">Deja esta terminal abierta mientras ves contenido</div>
                 <div class="code-block"><code>cloudflared tunnel --url http://localhost:8080</code></div>
               </div>
             </div>
+
             <div class="tunnel-step tunnel-step--highlight">
-              <div class="tunnel-step__num tunnel-step__num--accent">4</div>
+              <div class="tunnel-step__num tunnel-step__num--accent">3</div>
               <div class="tunnel-step__body">
-                <div class="tunnel-step__title">Pega la URL HTTPS que genera cloudflared</div>
-                <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-banana.trycloudflare.com</code></div>
+                <div class="tunnel-step__title">Pega la URL HTTPS del túnel</div>
+                <div class="tunnel-step__sub">Algo como <code class="inline-code">https://xxxx-xxxx.trycloudflare.com</code></div>
                 <div class="tunnel-input-row">
                   <input id="tunnel-url-input" type="url"
                     placeholder="https://xxxx-xxxx.trycloudflare.com"
@@ -266,21 +447,18 @@
             </div>
           </div>
 
-          <!-- Info sobre el docker-compose -->
           <div class="settings-info-box">
-            <div class="settings-info-box__icon">ℹ️</div>
+            <div>ℹ️</div>
             <div>
-              <strong>¿No tienes el motor configurado?</strong>
-              <p>Clona el repo, asegúrate de tener Docker instalado, y ejecuta <code class="inline-code">docker compose up -d</code> desde la raíz del proyecto. El motor AceStream quedará disponible en <code class="inline-code">http://localhost:8080</code>.</p>
+              <strong>Qué valida el estado verde</strong>
+              <p>La app comprobará la versión del motor por HTTPS a través del túnel. Si eso falla, no es un problema visual: es CSP, CORS o redirect del motor.</p>
             </div>
           </div>
         </div>
       </div>
-
     </section>
   </main>
 
-  <!-- MODAL DETALLE CANAL -->
   <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Detalle del canal">
     <div class="modal">
       <div class="modal-header">
@@ -299,7 +477,6 @@
     </div>
   </div>
 
-  <!-- MODAL LISTAS -->
   <div id="playlist-overlay" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Seleccionar lista">
     <div class="modal">
       <div class="modal-header">
@@ -315,8 +492,6 @@
       </div>
     </div>
   </div>
-
-
 
   <script src="./app.js"></script>
 </body>

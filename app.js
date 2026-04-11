@@ -78,29 +78,26 @@ const state = {
   currentStreamIndex: 0,
   aceAvailable: false,
   hlsInstance: null,
-  suggestions: [],
   acePollingAbort: null
 };
 
 let m3uWorker = null;
 
 const dom = {
-  urlInput:          document.getElementById('url-input'),
-  searchInput:       document.getElementById('search-input'),
-  groupPills:        document.getElementById('group-pills'),
-  channelList:       document.getElementById('channel-list'),
-  status:            document.getElementById('sidebar-status'),
-  sentinel:          document.getElementById('scroll-sentinel'),
-  playerOverlay:     document.getElementById('player-overlay'),
-  playerSpinner:     document.getElementById('player-spinner'),
-  playerError:       document.getElementById('player-error'),
-  errText:           document.getElementById('player-error-text'),
-  playerPanel:       document.getElementById('player-panel'),
-  sidebar:           document.getElementById('channel-panel'),
-  quickFilters:      document.getElementById('quick-filters'),
-  suggestedChannels: document.getElementById('suggested-channels'),
-  aceStatus:         document.getElementById('ace-status'),
-  aceTunnelBanner:   document.getElementById('ace-tunnel-banner')
+  urlInput:        document.getElementById('url-input'),
+  searchInput:     document.getElementById('search-input'),
+  groupPills:      document.getElementById('group-pills'),
+  channelList:     document.getElementById('channel-list'),
+  status:          document.getElementById('sidebar-status'),
+  sentinel:        document.getElementById('scroll-sentinel'),
+  playerOverlay:   document.getElementById('player-overlay'),
+  playerSpinner:   document.getElementById('player-spinner'),
+  playerError:     document.getElementById('player-error'),
+  errText:         document.getElementById('player-error-text'),
+  playerPanel:     document.getElementById('player-panel'),
+  sidebar:         document.getElementById('channel-panel'),
+  aceStatus:       document.getElementById('ace-status'),
+  aceTunnelBanner: document.getElementById('ace-tunnel-banner')
 };
 
 const observer = new IntersectionObserver((entries) => {
@@ -199,19 +196,10 @@ function updateAceStatusDisplay() {
     el.title = `Túnel: ${base}`;
   } else {
     setAceStatus('idle');
-    el.title = 'Motor local 127.0.0.1:6878 (sin HTTPS)';
+    el.title = 'Sin túnel HTTPS configurado';
   }
 
   el.style.cursor = IS_GITHUB_PAGES ? 'pointer' : 'default';
-  if (IS_GITHUB_PAGES) {
-    el.addEventListener('click', () => {
-      // Navegar al tab de settings en lugar de abrir modal flotante
-      const tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
-      tabBtns.forEach(btn => {
-        if (btn.dataset.tab === 'settings') btn.click();
-      });
-    }, { once: true });
-  }
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
@@ -222,11 +210,10 @@ function init() {
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-  initTabs(); // NUEVO: inicializar sistema de tabs
+  initTabs();
   loadPlaylistOptions();
-  buildQuickFilters();
   bindUI();
-  bindTunnelSettings(); // MODIFICADO: antes bindTunnelModal, ahora apunta al tab
+  bindTunnelSettings();
   observer.observe(dom.sentinel);
   updateAceStatusDisplay();
 
@@ -357,16 +344,6 @@ function setSidebar(open) {
   document.getElementById('sidebar-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function buildQuickFilters() {
-  dom.quickFilters.innerHTML = '';
-  QUICK_FILTERS.forEach(tag => {
-    const btn = document.createElement('button');
-    btn.className = 'chip';
-    btn.textContent = tag;
-    btn.addEventListener('click', () => { dom.searchInput.value = tag; applyFilter(); setSidebar(true); });
-    dom.quickFilters.appendChild(btn);
-  });
-}
 
 // ─── Playlists ────────────────────────────────────────────────────────────────
 
@@ -411,7 +388,6 @@ function loadFromInput() {
   dom.channelList.innerHTML = '';
   state.allChannels = [];
   state.filteredChs = [];
-  state.suggestions = [];
   if (m3uWorker) { m3uWorker.terminate(); m3uWorker = null; }
   setPlayerIdle();
 
@@ -437,7 +413,6 @@ function loadFromInput() {
         state.suggestions = state.allChannels.slice(0, 12);
         buildGroups();
         setGroup('Todos');
-        renderSuggestions();
         toast(`✅ ${state.allChannels.length} canales cargados`, 'ok');
       };
       m3uWorker.onerror = err => {
@@ -498,7 +473,6 @@ function applyFilter() {
   state.pageOffset = 0;
   dom.status.textContent = `${state.filteredChs.length} canal${state.filteredChs.length !== 1 ? 'es' : ''}`;
   renderNextBatch();
-  renderSuggestions(q);
 }
 
 // ─── Channel Cards ────────────────────────────────────────────────────────────
@@ -534,21 +508,6 @@ function makeCard(ch) {
   return btn;
 }
 
-function renderSuggestions(q = '') {
-  const source = q ? state.filteredChs.slice(0, 10) : state.suggestions.slice(0, 10);
-  dom.suggestedChannels.innerHTML = '';
-  if (!source.length) {
-    dom.suggestedChannels.innerHTML = '<div class="ch-sub">Sin sugerencias todavía.</div>';
-    return;
-  }
-  source.forEach(ch => {
-    const btn = document.createElement('button');
-    btn.className = 'chip';
-    btn.textContent = ch.name;
-    btn.addEventListener('click', () => openModal(ch._id));
-    dom.suggestedChannels.appendChild(btn);
-  });
-}
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
@@ -824,11 +783,24 @@ function copyToClipboard(url) {
 
 async function detectAceEngine() {
   const base = getAceBase();
+
+  // Si la base es HTTP (ej. legacy 127.0.0.1:6878) y estamos en GitHub Pages,
+  // no intentes hacer fetch porque la CSP lo bloquea.
+  if (/^http:\/\//i.test(base)) {
+    setAceStatus('idle');
+    return;
+  }
+
   setAceStatus('connecting');
+
   try {
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 2000);
-    const res = await fetch(`${base}/webui/api/service?method=get_version`, { signal: ctrl.signal });
+
+    const res = await fetch(`${base}/webui/api/service?method=get_version`, {
+      signal: ctrl.signal
+    });
+
     if (res.ok) {
       state.aceAvailable = true;
       setAceStatus('connected');
@@ -837,10 +809,7 @@ async function detectAceEngine() {
       setAceStatus('error');
     }
   } catch (_) {
-    setAceStatus('idle');
-    if (IS_GITHUB_PAGES && !localStorage.getItem('ace_tunnel_url')) {
-      dom.aceTunnelBanner?.classList.remove('hidden');
-    }
+    setAceStatus('error');
   }
 }
 
