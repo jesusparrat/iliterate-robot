@@ -50,7 +50,7 @@ const LOGO_MAP = {
   'teledeporte':            { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Teledeporte.png' },
   'gol play':               { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Gol%20Play.png' },
   'real madrid tv':         { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Real%20Madrid%20TV.png' },
-  'barça tv':               { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Barca%20TV.png' }
+  'barca tv':               { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Barca%20TV.png' }
 };
 
 const GROUP_RULES = [
