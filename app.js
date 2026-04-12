@@ -750,10 +750,9 @@ function startHLS(url) {
       enableWorker: false,
       lowLatencyMode: true,
       xhrSetup: function(xhr, url) {
-        // Forzar SIEMPRE HTTPS si estamos bajo un tunnel trycloudflare.com
-        // para evitar el error de Mixed Content del navegador
+        // Forzar HTTPS y quitar el puerto 6878 si se cuela
         if (url.includes('trycloudflare.com')) {
-          url = url.replace(/^http:/i, 'https:');
+          url = url.replace(/^http:/i, 'https:').replace(/:6878\//, '/');
         }
         xhr.open('GET', url, true);
         xhr.withCredentials = false;

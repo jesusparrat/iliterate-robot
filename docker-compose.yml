@@ -30,27 +30,44 @@ services:
       server {
           listen 80;
           
-          # Eliminar CORS de origen
-          proxy_hide_header Access-Control-Allow-Origin;
+          # Headers CORS universales
+          add_header Access-Control-Allow-Origin \"*\" always;
+          add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS, HEAD\" always;
+          add_header Access-Control-Allow-Headers \"Origin, X-Requested-With, Content-Type, Accept, Range\" always;
+          add_header Access-Control-Expose-Headers \"Content-Length, Content-Range\" always;
           
-          # Health check
-          location = /health {
+          # Responder a todos los OPTIONS instantaneamente
+          if ($$request_method = OPTIONS) {
               add_header Access-Control-Allow-Origin \"*\" always;
-              proxy_pass http://acestream:6878/webui/api/service?method=get_version;
-              proxy_http_version 1.1;
+              add_header Access-Control-Allow-Methods \"GET, POST, OPTIONS, HEAD\" always;
+              add_header Access-Control-Allow-Headers \"Origin, X-Requested-With, Content-Type, Accept, Range\" always;
+              add_header Access-Control-Max-Age 1728000;
+              add_header Content-Type \"text/plain charset=UTF-8\";
+              add_header Content-Length 0;
+              return 204;
           }
           
-          # Todo el trafico de video
+          location /health {
+              proxy_pass http://acestream:6878/webui/api/service?method=get_version;
+              proxy_http_version 1.1;
+              proxy_hide_header Access-Control-Allow-Origin;
+          }
+          
           location / {
-              add_header Access-Control-Allow-Origin \"*\" always;
               proxy_pass http://acestream:6878;
               proxy_http_version 1.1;
               proxy_set_header Accept-Encoding \"\";
               proxy_set_header Host $$host;
+              proxy_hide_header Access-Control-Allow-Origin;
               
-              # Sustituir HTTP a HTTPS y matar el puerto 6878
-              sub_filter_types application/vnd.apple.mpegurl application/x-mpegurl text/plain text/html application/json;
+              # Reescribir redirecciones de Acestream (301/302) para que Cloudflare no las rompa
+              proxy_redirect ~^http://[^/]+:6878(/.*)$$ https://$$host$$1;
+              proxy_redirect ~^http://[^/]+(/.*)$$ https://$$host$$1;
+              
+              # Subfiltro agresivo
+              sub_filter_types *;
               sub_filter \"http://$$host:6878\" \"https://$$host\";
+              sub_filter \"http://$$host\" \"https://$$host\";
               sub_filter \"http://127.0.0.1:6878\" \"https://$$host\";
               sub_filter \"http://localhost:6878\" \"https://$$host\";
               sub_filter \"http://acestream:6878\" \"https://$$host\";
