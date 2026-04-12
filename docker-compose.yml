@@ -1,14 +1,16 @@
 services:
 
   acestream:
-    image: magnetikonline/acestream-server:latest
-    # CAMBIO: --allow-remoteaccess hace que el motor escuche en 0.0.0.0
-    # en lugar de solo 127.0.0.1, necesario para que nginx lo alcance
-    # por la red interna Docker (acestream:6878)
-    command: /start-engine --client-console --allow-remoteaccess
+    # martinbjeldbak/acestream-http-proxy: proxy HTTP nativo para AceStream
+    # Actualizado octubre 2025 — versión de engine actual
+    # Diseñado exactamente para usarse como proxy HTTP detrás de un reverse proxy
+    image: martinbjeldbak/acestream-http-proxy:latest
     restart: unless-stopped
     ports:
       - "6878:6878"
+    volumes:
+      # Persiste la caché del motor entre reinicios (acelera streams siguientes)
+      - acestream-data:/root/.ACEStream
     networks:
       - ace-net
 
@@ -23,6 +25,9 @@ services:
       - acestream
     networks:
       - ace-net
+
+volumes:
+  acestream-data:
 
 networks:
   ace-net:

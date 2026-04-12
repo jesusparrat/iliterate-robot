@@ -739,14 +739,10 @@ function startHLS(url) {
 // DESPUÉS — xhrSetup intercepta cada petición de HLS.js y fuerza HTTPS
     state.hlsInstance = new Hls({
       maxBufferLength: 30,
-      enableWorker: true,
+      enableWorker: false,  // desactiva el worker que usa eval
       lowLatencyMode: true,
       xhrSetup: (xhr, url) => {
-        // Si HLS.js intenta cargar un segmento con http://, lo reescribe a https://
-        // antes de enviarlo — evita CSP connect-src errors en los .ts chunks
-        if (/^http:\/\//i.test(url)) {
-          xhr.open('GET', url.replace(/^http:\/\//i, 'https://'), true);
-        }
+        if (/^http:\/\//i.test(url)) xhr.open('GET', url.replace(/^http:\/\//i, 'https://'), true);
         xhr.withCredentials = false;
       }
     });
