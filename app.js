@@ -747,13 +747,18 @@ function startHLS(url) {
 // DESPUÉS — xhrSetup intercepta cada petición de HLS.js y fuerza HTTPS
     state.hlsInstance = new Hls({
       maxBufferLength: 30,
-      enableWorker: false,  // desactiva el worker que usa eval
+      enableWorker: false,
       lowLatencyMode: true,
-      xhrSetup: (xhr, url) => {
-        if (/^http:\/\//i.test(url)) xhr.open('GET', url.replace(/^http:\/\//i, 'https://'), true);
+      xhrSetup: function(xhr, url) {
+        // Forzar SIEMPRE HTTPS si estamos bajo un tunnel trycloudflare.com
+        // para evitar el error de Mixed Content del navegador
+        if (url.includes('trycloudflare.com')) {
+          url = url.replace(/^http:/i, 'https:');
+        }
+        xhr.open('GET', url, true);
         xhr.withCredentials = false;
       }
-    });
+    });    
     state.hlsInstance.loadSource(url);
     state.hlsInstance.attachMedia(vid);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
