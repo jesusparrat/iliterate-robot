@@ -732,48 +732,79 @@ function hidePlayButton() {
 
 function startHLS(url) {
   dom.playerSpinner.classList.remove('hidden');
-  if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; }
+
+  // Limpia botón de play manual si existía
+  const oldBtn = document.getElementById('manual-play-btn');
+  if (oldBtn) oldBtn.remove();
+
+  if (state.hlsInstance) {
+    state.hlsInstance.destroy();
+    state.hlsInstance = null;
+  }
 
   const vid = getCleanVideoElement();
-  const isHLS = /\.m3u8(\?|$)/i.test(url) || /m3u8/i.test(url) || /\/ace\//i.test(url);
+  vid.muted = true; // forzado como propiedad JS, no solo atributo
 
-  vid.addEventListener('waiting', () => dom.playerSpinner.classList.remove('hidden'));
-  vid.addEventListener('playing', () => dom.playerSpinner.classList.add('hidden'));
+  vid.addEventListener('waiting',  () => dom.playerSpinner.classList.remove('hidden'));
+  vid.addEventListener('playing',  () => {
+    dom.playerSpinner.classList.add('hidden');
+    const btn = document.getElementById('manual-play-btn');
+    if (btn) btn.remove();
+  });
   vid.addEventListener('error', () => triggerFallback('Error de reproducción'), { once: true });
 
+  const isHLS = /\.m3u8(\?|$)/i.test(url) || /m3u8/i.test(url) || /\/ace\//i.test(url);
+
   if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
-// DESPUÉS — xhrSetup intercepta cada petición de HLS.js y fuerza HTTPS
     state.hlsInstance = new Hls({
       maxBufferLength: 30,
-      enableWorker: false,  // desactiva el worker que usa eval
+      enableWorker: false,
       lowLatencyMode: true,
-      xhrSetup: (xhr, url) => {
-        if (/^http:\/\//i.test(url)) xhr.open('GET', url.replace(/^http:\/\//i, 'https://'), true);
+      xhrSetup: (xhr, u) => {
+        if (/^http:\/\//i.test(u)) xhr.open('GET', u.replace(/^http:\/\//i, 'https://'), true);
         xhr.withCredentials = false;
       }
     });
+
     state.hlsInstance.loadSource(url);
     state.hlsInstance.attachMedia(vid);
+
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       dom.playerSpinner.classList.add('hidden');
-      // Fuerza muted en la propiedad JS (no solo atributo HTML)
-      // Brave permite autoplay solo si el vídeo está silenciado
-      vid.muted = true;
       vid.play().catch(() => {
-        // Si autoplay falla, muestra botón de play manual
-        showPlayButton(vid);
+        // Autoplay bloqueado por Brave — muestra botón manual
+        const btn = document.createElement('button');
+        btn.id = 'manual-play-btn';
+        btn.className = 'btn btn-primary';
+        btn.textContent = '▶ Reproducir';
+        btn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;font-size:1rem;padding:12px 28px;cursor:pointer';
+        btn.onclick = () => {
+          vid.muted = true;
+          vid.play().catch(() => {});
+          btn.remove();
+        };
+        document.getElementById('player-wrap').appendChild(btn);
       });
     });
 
-    // Red de seguridad: si MANIFEST_PARSED ya ocurrió pero play() tardó
-    vid.addEventListener('canplay', () => {
-      dom.playerSpinner.classList.add('hidden');
-    }, { once: true });
+    state.hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) triggerFallback('Error HLS: ' + data.type);
+    });
 
-    vid.addEventListener('playing', () => {
+  } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+    vid.src = url;
+    vid.addEventListener('loadedmetadata', () => {
       dom.playerSpinner.classList.add('hidden');
-      hidePlayButton();
+      vid.play().catch(() => {});
     }, { once: true });
+  } else {
+    vid.src = url;
+    vid.addEventListener('loadedmetadata', () => {
+      dom.playerSpinner.classList.add('hidden');
+      vid.play().catch(() => {});
+    }, { once: true });
+  }
+}
 
 function setPlayerIdle() {
   if (state.acePollingAbort) { state.acePollingAbort.abort(); state.acePollingAbort = null; }
