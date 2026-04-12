@@ -603,9 +603,10 @@ function closeModal(fromPopState = false) {
 // ─── AceStream Polling ────────────────────────────────────────────────────────
 
 async function waitForAceStream(aceUrl, signal) {
-  const MAX_ATTEMPTS = 12;
+  const MAX_ATTEMPTS = 18;   // 36s total, antes 24s — AceStream necesita tiempo buscando peers
   const INTERVAL_MS = 2000;
   const spinnerText = dom.playerSpinner.querySelector('.spinner-text');
+  let resolvedStreamUrl = null;  // se guarda en el primer redirect recibido
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     if (signal.aborted) throw new DOMException('cancelled', 'AbortError');
@@ -615,15 +616,26 @@ async function waitForAceStream(aceUrl, signal) {
 
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 3000);
+      const tid = setTimeout(() => ctrl.abort(), 4000);
 
-      const res = await fetch(aceUrl, { signal: ctrl.signal });
+      // Primera llamada: /ace/getstream → 302 → /ace/r/HASH/SESSION
+      // Siguientes: directamente /ace/r/HASH/SESSION (evita regenerar session)
+      const urlToPoll = resolvedStreamUrl || aceUrl;
+      const res = await fetch(urlToPoll, { signal: ctrl.signal });
       clearTimeout(tid);
 
-      if (res.ok) {
-        return (res.url || aceUrl).replace(/^http:\/\//i, 'https://');
+      // Siempre fuerza HTTPS en la URL resuelta tras el redirect
+      const finalUrl = (res.url || urlToPoll).replace(/^http:\/\//i, 'https://');
+
+      // Guarda la URL del stream para los siguientes intentos
+      if (!resolvedStreamUrl && finalUrl !== aceUrl) {
+        resolvedStreamUrl = finalUrl;
       }
-    } catch (_) { /* 503 / timeout */ }
+
+      if (res.ok) return finalUrl;
+
+      // 500 = AceStream buscando peers, espera y reintenta con la misma URL
+    } catch (_) { /* timeout / abort, reintenta */ }
 
     await new Promise(r => setTimeout(r, INTERVAL_MS));
   }
