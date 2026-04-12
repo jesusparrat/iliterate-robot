@@ -30,29 +30,35 @@ services:
       server {
           listen 80;
           
-          proxy_redirect http://acestream:6878/ https://$$http_host/;
-          proxy_redirect http://127.0.0.1:6878/ https://$$http_host/;
-          proxy_redirect http://localhost:6878/ https://$$http_host/;
+          # Eliminar CORS de origen
+          proxy_hide_header Access-Control-Allow-Origin;
           
           location /health {
+              add_header Access-Control-Allow-Origin \"*\" always;
               proxy_pass http://acestream:6878/webui/api/service?method=get_version;
               proxy_http_version 1.1;
           }
-          location /ace/manifest.m3u8 {
-              proxy_pass http://acestream:6878;
+          
+          location /ace/ {
+              add_header Access-Control-Allow-Origin \"*\" always;
+              proxy_pass http://acestream:6878/ace/;
               proxy_http_version 1.1;
               proxy_set_header Accept-Encoding \"\";
+              proxy_set_header X-Forwarded-Proto https;
+              proxy_set_header Host $$host;
+              
+              # Sustituir HTTP a HTTPS brutalmente dentro del M3U8
               sub_filter_types application/vnd.apple.mpegurl application/x-mpegurl text/plain;
-              sub_filter \"http://127.0.0.1:6878/\" \"/\";
-              sub_filter \"http://acestream:6878/\" \"/\";
-              sub_filter \"http://localhost:6878/\" \"/\";
+              sub_filter \"http://$$host\" \"https://$$host\";
+              sub_filter \"http://127.0.0.1:6878\" \"https://$$host\";
               sub_filter_once off;
           }
+          
           location / {
+              add_header Access-Control-Allow-Origin \"*\" always;
               proxy_pass http://acestream:6878;
               proxy_http_version 1.1;
-              proxy_hide_header Access-Control-Allow-Origin;
-              add_header Access-Control-Allow-Origin \"*\" always;
+              proxy_set_header Host $$host;
           }
       }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
 
