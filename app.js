@@ -671,7 +671,7 @@ function playStream(chId, streamIndex) {
     const hash = stream.url.replace(/^acestream:\/\//i, '').replace(/\?.*$/, '');
     const aceBase = getAceBase();
     // const aceHlsUrl = `${aceBase}/ace/getstream?id=${encodeURIComponent(hash)}`;
-    const aceHlsUrl = `${aceBase}/ace/manifest.m3u8?id=${encodeURIComponent(hash)}`;
+    const aceHlsUrl = `${aceBase}/ace/getstream?id=${encodeURIComponent(hash)}&format=m3u8`;
 
     const isHttp = /^http:\/\//i.test(aceHlsUrl);
     const isHttpsPage = location.protocol === 'https:';
