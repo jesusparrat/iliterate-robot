@@ -603,10 +603,9 @@ function closeModal(fromPopState = false) {
 // ─── AceStream Polling ────────────────────────────────────────────────────────
 
 async function waitForAceStream(aceUrl, signal) {
-  const MAX_ATTEMPTS = 18;   // 36s total, antes 24s — AceStream necesita tiempo buscando peers
+  const MAX_ATTEMPTS = 18;
   const INTERVAL_MS = 2000;
   const spinnerText = dom.playerSpinner.querySelector('.spinner-text');
-  let resolvedStreamUrl = null;  // se guarda en el primer redirect recibido
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     if (signal.aborted) throw new DOMException('cancelled', 'AbortError');
@@ -617,25 +616,13 @@ async function waitForAceStream(aceUrl, signal) {
     try {
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), 4000);
-
-      // Primera llamada: /ace/getstream → 302 → /ace/r/HASH/SESSION
-      // Siguientes: directamente /ace/r/HASH/SESSION (evita regenerar session)
-      const urlToPoll = resolvedStreamUrl || aceUrl;
-      const res = await fetch(urlToPoll, { signal: ctrl.signal });
+      const res = await fetch(aceUrl, { signal: ctrl.signal, cache: 'no-store' });
       clearTimeout(tid);
 
-      // Siempre fuerza HTTPS en la URL resuelta tras el redirect
-      const finalUrl = (res.url || urlToPoll).replace(/^http:\/\//i, 'https://');
-
-      // Guarda la URL del stream para los siguientes intentos
-      if (!resolvedStreamUrl && finalUrl !== aceUrl) {
-        resolvedStreamUrl = finalUrl;
-      }
-
-      if (res.ok) return finalUrl;
-
-      // 500 = AceStream buscando peers, espera y reintenta con la misma URL
-    } catch (_) { /* timeout / abort, reintenta */ }
+      // 200 = M3U8 listo para reproducir
+      if (res.ok) return aceUrl;
+      // 500 = motor buscando peers, reintenta con la misma URL
+    } catch (_) { /* timeout o abort, reintenta */ }
 
     await new Promise(r => setTimeout(r, INTERVAL_MS));
   }
@@ -664,7 +651,8 @@ function playStream(chId, streamIndex) {
   if (stream.type === 'ace') {
     const hash = stream.url.replace(/^acestream:\/\//i, '').replace(/\?.*$/, '');
     const aceBase = getAceBase();
-    const aceHlsUrl = `${aceBase}/ace/getstream?id=${encodeURIComponent(hash)}`;
+    // const aceHlsUrl = `${aceBase}/ace/getstream?id=${encodeURIComponent(hash)}`;
+    const aceHlsUrl = `${aceBase}/ace/manifest.m3u8?id=${encodeURIComponent(hash)}`;
 
     const isHttp = /^http:\/\//i.test(aceHlsUrl);
     const isHttpsPage = location.protocol === 'https:';
@@ -810,7 +798,7 @@ async function detectAceEngine() {
 
   try {
     const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 2000);
+    setTimeout(() => ctrl.abort(), 5000);
 
     const res = await fetch(`${base}/webui/api/service?method=get_version`, {
       signal: ctrl.signal
