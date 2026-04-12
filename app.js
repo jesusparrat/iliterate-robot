@@ -712,6 +712,24 @@ function getCleanVideoElement() {
   return nw;
 }
 
+function showPlayButton(vid) {
+  let btn = document.getElementById('manual-play-btn');
+  if (btn) return;
+  btn = document.createElement('button');
+  btn.id = 'manual-play-btn';
+  btn.className = 'btn btn-primary';
+  btn.textContent = '▶ Reproducir';
+  btn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;font-size:1rem;padding:12px 28px';
+  btn.onclick = () => { vid.muted = true; vid.play().catch(() => {}); hidePlayButton(); };
+  document.getElementById('player-wrap').appendChild(btn);
+  dom.playerSpinner.classList.add('hidden');
+}
+
+function hidePlayButton() {
+  const btn = document.getElementById('manual-play-btn');
+  if (btn) btn.remove();
+}
+
 function startHLS(url) {
   dom.playerSpinner.classList.remove('hidden');
   if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; }
@@ -738,19 +756,24 @@ function startHLS(url) {
     state.hlsInstance.attachMedia(vid);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       dom.playerSpinner.classList.add('hidden');
-      vid.play().catch(() => {});
+      // Fuerza muted en la propiedad JS (no solo atributo HTML)
+      // Brave permite autoplay solo si el vídeo está silenciado
+      vid.muted = true;
+      vid.play().catch(() => {
+        // Si autoplay falla, muestra botón de play manual
+        showPlayButton(vid);
+      });
     });
-    state.hlsInstance.on(Hls.Events.ERROR, (_, data) => {
-      if (data.fatal) triggerFallback('Error HLS: ' + data.type);
-    });
-  } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
-    vid.src = url;
-    vid.addEventListener('loadedmetadata', () => { dom.playerSpinner.classList.add('hidden'); vid.play().catch(() => {}); }, { once: true });
-  } else {
-    vid.src = url;
-    vid.addEventListener('loadedmetadata', () => { dom.playerSpinner.classList.add('hidden'); vid.play().catch(() => {}); }, { once: true });
-  }
-}
+
+    // Red de seguridad: si MANIFEST_PARSED ya ocurrió pero play() tardó
+    vid.addEventListener('canplay', () => {
+      dom.playerSpinner.classList.add('hidden');
+    }, { once: true });
+
+    vid.addEventListener('playing', () => {
+      dom.playerSpinner.classList.add('hidden');
+      hidePlayButton();
+    }, { once: true });
 
 function setPlayerIdle() {
   if (state.acePollingAbort) { state.acePollingAbort.abort(); state.acePollingAbort = null; }
