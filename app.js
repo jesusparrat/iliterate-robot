@@ -17,6 +17,25 @@ function getAceBase() {
   return 'http://127.0.0.1:6878';
 }
 
+async function validateSavedTunnel() {
+  const saved = localStorage.getItem('ace_tunnel_url');
+  if (!saved) return;
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(`${saved.replace(/\/$/, '')}/health`, {
+      signal: ctrl.signal,
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('not ok');
+    setAceStatus('connected');
+  } catch (_) {
+    localStorage.removeItem('ace_tunnel_url');
+    setAceStatus('idle');
+  }
+}
+
+
 const LOGO_MAP = {
   'liga de campeones':      { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Liga%20de%20Campeones%20BAR.png' },
   'm+ liga de campeones':   { url: 'https://raw.githubusercontent.com/davidmuma/picons_dobleM/master/icon/Liga%20de%20Campeones%20BAR.png' },
@@ -207,17 +226,17 @@ function updateAceStatusDisplay() {
 function init() {
   updateTopbarHeight();
   window.addEventListener('resize', updateTopbarHeight);
-
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
-
+  if ('serviceWorker' in navigator)
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   initTabs();
   loadPlaylistOptions();
   bindUI();
   bindTunnelSettings();
   observer.observe(dom.sentinel);
   updateAceStatusDisplay();
-
   if (!IS_MOBILE) detectAceEngine();
+  // NUEVO v2: valida al arrancar si el tunnel guardado sigue vivo
+  validateSavedTunnel();
 }
 
 function updateTopbarHeight() {
@@ -811,9 +830,7 @@ async function detectAceEngine() {
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 5000);
 
-    const res = await fetch(`${base}/webui/api/service?method=get_version`, {
-      signal: ctrl.signal
-    });
+    const res = await fetch(`${base}/health`, { signal: ctrl.signal, cache: 'no-store' });
 
     if (res.ok) {
       state.aceAvailable = true;
