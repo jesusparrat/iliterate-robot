@@ -717,10 +717,11 @@ function startHLS(url) {
   if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; }
 
   const vid = getCleanVideoElement();
+  vid.muted = true;
   const isHLS = /\.m3u8(\?|$)/i.test(url) || /m3u8/i.test(url) || /\/ace\//i.test(url);
 
   vid.addEventListener('waiting', () => dom.playerSpinner.classList.remove('hidden'));
-  vid.addEventListener('playing', () => dom.playerSpinner.classList.add('hidden'));
+  vid.addEventListener('playing', () => { dom.playerSpinner.classList.add('hidden'); const b = document.getElementById('manual-play-btn'); if (b) b.remove(); });
   vid.addEventListener('error', () => triggerFallback('Error de reproducción'), { once: true });
 
   if (isHLS && typeof Hls !== 'undefined' && Hls.isSupported()) {
@@ -738,7 +739,17 @@ function startHLS(url) {
     state.hlsInstance.attachMedia(vid);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
       dom.playerSpinner.classList.add('hidden');
-      vid.play().catch(() => {});
+      vid.play().catch(() => {
+        // Autoplay bloqueado (Brave/Chrome) — muestra botón de play manual
+        const btn = document.createElement('button');
+        btn.id = 'manual-play-btn';
+        btn.className = 'btn btn-primary';
+        btn.textContent = '▶ Reproducir';
+        btn.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;font-size:1rem;padding:12px 28px;cursor:pointer';
+        btn.onclick = () => { vid.muted = true; vid.play().catch(() => {}); btn.remove(); };
+        const wrap = document.getElementById('player-wrap');
+        if (wrap && !document.getElementById('manual-play-btn')) wrap.appendChild(btn);
+      });
     });
     state.hlsInstance.on(Hls.Events.ERROR, (_, data) => {
       if (data.fatal) triggerFallback('Error HLS: ' + data.type);
